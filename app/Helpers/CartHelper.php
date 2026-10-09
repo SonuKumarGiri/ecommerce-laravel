@@ -3,13 +3,14 @@
 namespace App\Helpers;
 
 use App\Models\CartItem;
+use App\Services\CartService;
 
 class CartHelper
 {
     public static function getCartCount()
     {
         if (auth()->check()) {
-            \App\Services\CartService::migrateGuestCart(auth()->id());
+            CartService::migrateGuestCart(auth()->id());
             return CartItem::whereHas('cart', function($q) {
                 $q->where('user_id', auth()->id());
             })->count();

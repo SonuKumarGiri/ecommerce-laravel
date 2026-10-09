@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Cart;
 use App\Models\Product;
+use App\Models\Payment;
 use App\Http\Resources\OrderResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -232,7 +233,7 @@ class OrderController extends Controller
                 }
             }
 
-            $payment = \App\Models\Payment::where('order_id', $order->id)->first();
+            $payment = Payment::where('order_id', $order->id)->first();
             if ($payment && strtoupper($payment->status) === 'SUCCESS') {
                 $payment->update(['status' => 'REFUNDED']);
                 $order->update(['payment_status' => 'refunded']);

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Product;
+use App\Services\CartService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Log;
@@ -15,7 +16,7 @@ class CartController extends Controller
 {
     private function getCart()
     {
-        return \App\Services\CartService::getCart();
+        return CartService::getCart();
     }
 
     public function index()

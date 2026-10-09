@@ -7,6 +7,7 @@ use App\Models\Cart;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
+use App\Models\Product;
 use App\Http\Requests\CheckoutRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,18 +18,20 @@ use App\Jobs\SendOrderConfirmationJob;
 use App\Notifications\NewOrderNotification;
 use App\Notifications\CustomerOrderPlacedNotification;
 use App\Models\User;
+use App\Services\CartService;
+use Exception;
 use Throwable;
 
 class CheckoutController extends Controller
 {
     private function getCart()
     {
-        return \App\Services\CartService::getCart(auth()->id())->load('items.product');
+        return CartService::getCart(auth()->id())->load('items.product');
     }
 
     public function index()
     {
-        \App\Services\CartService::migrateGuestCart(auth()->id());
+        CartService::migrateGuestCart(auth()->id());
 
         $cart = $this->getCart();
 
@@ -65,9 +68,9 @@ class CheckoutController extends Controller
             // Pre-check stock and calculate total
             foreach ($cart->items as $item) {
                 // Explicitly lock the product row to prevent race conditions
-                $product = \App\Models\Product::lockForUpdate()->find($item->product_id);
+                $product = Product::lockForUpdate()->find($item->product_id);
                 if (!$product || $product->stock < $item->quantity) {
-                    throw new \Exception("Product '" . ($product ? $product->name : 'Unknown') . "' does not have enough stock.");
+                    throw new Exception("Product '" . ($product ? $product->name : 'Unknown') . "' does not have enough stock.");
                 }
                 $totalAmount += $product->price * $item->quantity;
                 $item->locked_product = $product;
