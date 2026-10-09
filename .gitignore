@@ -6,6 +6,8 @@
 /public/build
 /public/hot
 /public/storage
+/public/uploads/**/*
+!/public/uploads/**/.gitkeep
 /storage/*.key
 /storage/pail
 /storage/logs/*
@@ -52,3 +54,6 @@ yarn-error.log
 Homestead.json
 Homestead.yaml
 /auth.json
+
+# Tasks / Notes
+inventory_task.md
