@@ -88,10 +88,22 @@ A fully configured Postman collection has been included in the root directory: `
 4. Run the **Login** request to receive an authentication token.
 5. Copy the token into the collection's `token` variable to test all protected routes (Cart, Orders, Payment).
 
-## Admin Credentials
-After running the seeders, you can log into the Admin panel (`/admin` or `/login`) using:
-- **Email:** admin@example.com
-- **Password:** password
+## Demo User Credentials
+After running the seeders (`php artisan db:seed`), the following test accounts are readily available:
+
+### 1. Admin Account
+- **Role:** Administrator (full access to Admin Dashboard, Categories, Products, Orders, Users, Reports, Settings)
+- **Email:** `admin@example.com`
+- **Password:** `password`
+- **Access URL:** `/admin` or `/login`
+
+### 2. Customer Account
+- **Role:** Customer (browse products, cart management, checkout, order history, profile)
+- **Email:** `customer@example.com`
+- **Password:** `password`
+- **Access URL:** `/login`
+
+*Note: New customers can also register directly at `/register`.*
 
 ## API Documentation
 The application provides RESTful APIs utilizing Laravel Sanctum for authentication.
