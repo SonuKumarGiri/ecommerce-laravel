@@ -15,31 +15,7 @@ class CartController extends Controller
 {
     private function getCart()
     {
-        $userId = auth()->id();
-        $sessionId = Session::getId();
-
-        if ($userId) {
-            $userCart = Cart::firstOrCreate(['user_id' => $userId]);
-            
-            // Migrate session cart if it exists
-            $sessionCart = Cart::where('session_id', $sessionId)->first();
-            if ($sessionCart && $sessionCart->id !== $userCart->id) {
-                foreach ($sessionCart->items as $item) {
-                    $existing = $userCart->items()->where('product_id', $item->product_id)->first();
-                    if ($existing) {
-                        $existing->update(['quantity' => $existing->quantity + $item->quantity]);
-                        $item->delete();
-                    } else {
-                        $item->update(['cart_id' => $userCart->id]);
-                    }
-                }
-                $sessionCart->delete();
-            }
-            
-            return $userCart;
-        }
-
-        return Cart::firstOrCreate(['session_id' => $sessionId]);
+        return \App\Services\CartService::getCart();
     }
 
     public function index()

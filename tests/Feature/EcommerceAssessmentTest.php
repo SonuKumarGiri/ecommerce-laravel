@@ -179,4 +179,45 @@ class EcommerceAssessmentTest extends TestCase
         $response->assertRedirect();
         $this->assertDatabaseMissing('cart_items', ['id' => $item->id]);
     }
+
+    public function test_guest_cart_migrates_to_user_upon_login()
+    {
+        $product = Product::factory()->create(['stock' => 10, 'status' => 'active']);
+
+        // Guest adds product to cart
+        $this->post(route('cart.store'), [
+            'product_id' => $product->id,
+            'quantity' => 2,
+        ]);
+
+        $guestCart = Cart::whereNull('user_id')->first();
+        $this->assertNotNull($guestCart);
+        $this->assertDatabaseHas('cart_items', [
+            'cart_id' => $guestCart->id,
+            'product_id' => $product->id,
+            'quantity' => 2,
+        ]);
+
+        // Login as customer, simulating browser sending the guest_cart_session cookie
+        $loginResponse = $this->withCookies([
+            'guest_cart_session' => $guestCart->session_id,
+        ])->post(route('login'), [
+            'email' => $this->customer->email,
+            'password' => 'password',
+        ]);
+
+        $loginResponse->assertRedirect();
+
+        // Customer's cart should now contain the migrated items
+        $userCart = Cart::where('user_id', $this->customer->id)->first();
+        $this->assertNotNull($userCart);
+        $this->assertDatabaseHas('cart_items', [
+            'cart_id' => $userCart->id,
+            'product_id' => $product->id,
+            'quantity' => 2,
+        ]);
+
+        // Guest cart should be cleaned up
+        $this->assertDatabaseMissing('carts', ['id' => $guestCart->id]);
+    }
 }

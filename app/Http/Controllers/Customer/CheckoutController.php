@@ -23,27 +23,12 @@ class CheckoutController extends Controller
 {
     private function getCart()
     {
-        return Cart::with('items.product')->where('user_id', auth()->id())->first();
+        return \App\Services\CartService::getCart(auth()->id())->load('items.product');
     }
 
     public function index()
     {
-        // Migrate session cart to user cart if necessary
-        $sessionCart = Cart::where('session_id', Session::getId())->first();
-        if ($sessionCart) {
-            $userCart = Cart::firstOrCreate(['user_id' => auth()->id()]);
-            foreach ($sessionCart->items as $item) {
-                // If item exists in user cart, add quantity, else move
-                $existing = $userCart->items()->where('product_id', $item->product_id)->first();
-                if ($existing) {
-                    $existing->update(['quantity' => $existing->quantity + $item->quantity]);
-                    $item->delete();
-                } else {
-                    $item->update(['cart_id' => $userCart->id]);
-                }
-            }
-            $sessionCart->delete();
-        }
+        \App\Services\CartService::migrateGuestCart(auth()->id());
 
         $cart = $this->getCart();
 
