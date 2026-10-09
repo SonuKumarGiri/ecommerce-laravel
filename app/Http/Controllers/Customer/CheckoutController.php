@@ -1,0 +1,170 @@
+<?php
+
+namespace App\Http\Controllers\Customer;
+
+use App\Http\Controllers\Controller;
+use App\Models\Cart;
+use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\Payment;
+use App\Http\Requests\CheckoutRequest;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
+use App\Jobs\SendOrderConfirmationJob;
+use App\Notifications\NewOrderNotification;
+use App\Notifications\CustomerOrderPlacedNotification;
+use App\Models\User;
+use Throwable;
+
+class CheckoutController extends Controller
+{
+    private function getCart()
+    {
+        return Cart::with('items.product')->where('user_id', auth()->id())->first();
+    }
+
+    public function index()
+    {
+        // Migrate session cart to user cart if necessary
+        $sessionCart = Cart::where('session_id', Session::getId())->first();
+        if ($sessionCart) {
+            $userCart = Cart::firstOrCreate(['user_id' => auth()->id()]);
+            foreach ($sessionCart->items as $item) {
+                // If item exists in user cart, add quantity, else move
+                $existing = $userCart->items()->where('product_id', $item->product_id)->first();
+                if ($existing) {
+                    $existing->update(['quantity' => $existing->quantity + $item->quantity]);
+                    $item->delete();
+                } else {
+                    $item->update(['cart_id' => $userCart->id]);
+                }
+            }
+            $sessionCart->delete();
+        }
+
+        $cart = $this->getCart();
+
+        if (!$cart || $cart->items->isEmpty()) {
+            return redirect()->route('cart.index')->with('error', 'Your cart is empty.');
+        }
+
+        $subtotal = 0;
+        foreach ($cart->items as $item) {
+            if ($item->product && $item->product->stock >= $item->quantity) {
+                $subtotal += $item->product->price * $item->quantity;
+            } else if ($item->product && $item->product->stock > 0) {
+                 $subtotal += $item->product->price * $item->product->stock; // adjust dynamically on checkout if needed
+            }
+        }
+
+        return view('customer.checkout.index', compact('cart', 'subtotal'));
+    }
+
+    public function store(CheckoutRequest $request)
+    {
+
+        $cart = $this->getCart();
+
+        if (!$cart || $cart->items->isEmpty()) {
+            return redirect()->route('cart.index')->with('error', 'Your cart is empty.');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $totalAmount = 0;
+
+            // Pre-check stock and calculate total
+            foreach ($cart->items as $item) {
+                // Explicitly lock the product row to prevent race conditions
+                $product = \App\Models\Product::lockForUpdate()->find($item->product_id);
+                if (!$product || $product->stock < $item->quantity) {
+                    throw new \Exception("Product '" . ($product ? $product->name : 'Unknown') . "' does not have enough stock.");
+                }
+                $totalAmount += $product->price * $item->quantity;
+                $item->locked_product = $product;
+            }
+
+            // Create Order
+            $order = Order::create([
+                'order_number' => 'ORD-' . strtoupper(Str::random(10)),
+                'user_id' => auth()->id(),
+                'total_amount' => $totalAmount,
+                'status' => 'PLACED',
+                'payment_status' => 'PENDING',
+                'shipping_name' => $request->name,
+                'shipping_mobile' => $request->mobile,
+                'shipping_address' => $request->address,
+                'shipping_city' => $request->city,
+                'shipping_pincode' => $request->pincode,
+            ]);
+
+            // Create Order Items and Reduce Stock
+            foreach ($cart->items as $item) {
+                OrderItem::create([
+                    'order_id' => $order->id,
+                    'product_id' => $item->product_id,
+                    'quantity' => $item->quantity,
+                    'price' => $item->product->price,
+                    'total' => $item->product->price * $item->quantity,
+                ]);
+
+                // Reduce stock safely on locked record
+                $item->locked_product->decrement('stock', $item->quantity);
+            }
+
+            // Create Payment Record (Simulated)
+            Payment::create([
+                'order_id' => $order->id,
+                'amount' => $totalAmount,
+                'payment_method' => $request->payment_method,
+                'status' => $request->payment_method === 'COD' ? 'PENDING' : 'SUCCESS', // Simulating successful online payment
+                'transaction_id' => $request->payment_method === 'ONLINE' ? 'TXN' . strtoupper(Str::random(12)) : null,
+            ]);
+            
+            // If online payment is successful, update order payment status
+            if ($request->payment_method === 'ONLINE') {
+                $order->update(['payment_status' => 'SUCCESS']);
+            }
+
+            // Clear Cart
+            $cart->items()->delete();
+
+            DB::commit();
+
+            // Dispatch Notifications
+            try {
+                // Notify Customer
+                auth()->user()->notify(new CustomerOrderPlacedNotification($order));
+                
+                // Dispatch Email Job for Customer
+                SendOrderConfirmationJob::dispatch($order);
+
+                // Notify Admins
+                $admins = User::where('is_admin', true)->get();
+                foreach ($admins as $admin) {
+                    $admin->notify(new NewOrderNotification($order));
+                }
+            } catch (\Exception $e) {
+                Log::error('Notification Error on Checkout: ' . $e->getMessage());
+            }
+
+            return redirect()->route('orders.show', $order->id)->with('success', 'Order placed successfully!');
+
+        } catch (Throwable $th) {
+            DB::rollBack();
+            Log::error('Checkout Store Error: ' . $th->getMessage());
+            $userMessage = 'Failed to place order. Please try again or contact support.';
+            
+            // If it's our own thrown exception about stock, we can show it safely
+            if ($th instanceof \Exception && strpos($th->getMessage(), 'does not have enough stock') !== false) {
+                $userMessage = $th->getMessage();
+            }
+
+            return redirect()->back()->withInput()->with('error', $userMessage);
+        }
+    }
+}

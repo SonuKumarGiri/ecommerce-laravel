@@ -1,0 +1,189 @@
+{
+  "info": {
+    "name": "E-Commerce Assessment APIs",
+    "description": "Collection of APIs for the E-Commerce Order & Inventory Management System assessment.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"admin@example.com\",\n    \"password\": \"password\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "login"]
+            }
+          }
+        },
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Test User\",\n    \"email\": \"test@example.com\",\n    \"password\": \"password\",\n    \"password_confirmation\": \"password\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "register"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public Catalog",
+      "item": [
+        {
+          "name": "Get Categories",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/get-categories",
+              "host": ["{{base_url}}"],
+              "path": ["api", "get-categories"]
+            }
+          }
+        },
+        {
+          "name": "Get Products",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/get-products",
+              "host": ["{{base_url}}"],
+              "path": ["api", "get-products"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Customer Cart (Protected)",
+      "item": [
+        {
+          "name": "View Cart",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/get-cart",
+              "host": ["{{base_url}}"],
+              "path": ["api", "get-cart"]
+            }
+          }
+        },
+        {
+          "name": "Add to Cart",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"product_id\": 1,\n    \"quantity\": 2\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/add-to-cart",
+              "host": ["{{base_url}}"],
+              "path": ["api", "add-to-cart"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Customer Orders (Protected)",
+      "item": [
+        {
+          "name": "Place Order",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"shipping_name\": \"John Doe\",\n    \"shipping_phone\": \"1234567890\",\n    \"shipping_address\": \"123 Tech Park\",\n    \"shipping_city\": \"Bangalore\",\n    \"shipping_zip\": \"560001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/place-order",
+              "host": ["{{base_url}}"],
+              "path": ["api", "place-order"]
+            }
+          }
+        },
+        {
+          "name": "View My Orders",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/my-orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "my-orders"]
+            }
+          }
+        },
+        {
+          "name": "Process Payment",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"order_id\": 1,\n    \"amount\": 500\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payment/process",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payment", "process"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
