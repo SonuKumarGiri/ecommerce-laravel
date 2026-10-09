@@ -151,3 +151,41 @@ If the database scales to **10 million products, 50 million orders, and 100 mill
 3. **Caching Layer (Redis):** Cache heavily accessed data like the Product Catalog and Category list. Caching the results of `Product::with('category')->where('status', 'active')->paginate()` would drastically reduce database I/O.
 4. **Elasticsearch / Meilisearch:** Offload text-based `LIKE '%search%'` queries for products to a dedicated search engine instead of using slow SQL full-table scans.
 5. **Background Analytics:** Instead of calculating dashboard metrics (`SUM(total_amount)`, `COUNT(*)`) dynamically on page load, dispatch scheduled background jobs (Cron/Queues) to calculate and store these aggregates into a dedicated `daily_reports` table.
+
+## Notes for Evaluators / Reviewers
+
+1. **One-Command Setup**:
+   To set up a fresh environment with seeded demo data:
+   ```bash
+   composer install && npm install && npm run build
+   php artisan migrate --seed
+   ```
+
+2. **Automated Postman Collection**:
+   - The included `postman_collection.json` has pre-filled credentials for the customer account (`customer@example.com` / `password`).
+   - Logging in via the collection automatically runs a test script that sets the `token` variable, so you can execute protected endpoints (Cart, Orders, Payment) immediately without manual token copy-pasting.
+
+3. **Concurrency & Inventory Integrity**:
+   - Both order placement and order cancellation implement **pessimistic row locking** (`Product::lockForUpdate()` and `Order::lockForUpdate()`) wrapped in database transactions. This guarantees atomic inventory deductions and restorations, eliminating overselling and race conditions under concurrent traffic.
+
+4. **Authoritative Server-Side Pricing (Anti-Tampering)**:
+   - Client-side prices or totals sent in checkout requests are strictly ignored. The backend retrieves current product prices directly from the database and computes line items and order totals server-side.
+
+5. **Order Cancellation & Refund Lifecycle**:
+   - Order cancellation is managed centrally by `OrderService`.
+   - Orders can only be cancelled while in `PLACED`, `CONFIRMED`, `PROCESSING`, or `PENDING` status. Cancellations for orders marked `SHIPPED` or `DELIVERED` are rejected.
+   - If a cancelled order was already paid, its payment status is automatically updated to `REFUNDED`.
+   - Duplicate cancellation attempts are blocked, ensuring inventory is never restored more than once.
+
+6. **Guest Cart Migration**:
+   - Unauthenticated users can add products to their session cart. Upon signing up or logging in, session cart items automatically migrate into their database cart without overwriting existing items.
+
+7. **Queue Worker for Notifications**:
+   - Background jobs are utilized for order confirmation emails and notifications (`SendOrderConfirmationJob`). Run `php artisan queue:work` to process background jobs.
+
+8. **Automated Test Coverage**:
+   - 40 test cases covering Authentication, Products, Cart operations, Stock thresholds, Guest cart migration, Backend calculations, Admin updates, and Concurrency/Cancellation logic can be verified via:
+   ```bash
+   php artisan test
+   ```
+
