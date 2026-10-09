@@ -3,8 +3,8 @@
 @section('title', 'Verify Email - ShopEase')
 
 @section('content')
-<div class="min-h-[calc(100vh-200px)] flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-slate-50">
-    <div class="w-full sm:max-w-md mt-6 px-8 py-10 bg-white shadow-xl rounded-2xl border border-slate-100">
+<div class="min-h-[calc(100vh-200px)] flex flex-col sm:justify-center items-center py-6 sm:py-8 bg-slate-50">
+    <div class="w-full sm:max-w-md px-6 py-6 sm:px-8 sm:py-7 bg-white shadow-lg rounded-2xl border border-slate-100">
         
         <div class="mb-6 text-center">
             <div class="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4 text-indigo-600">

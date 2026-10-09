@@ -3,10 +3,10 @@
 @section('title', 'Login - ShopEase')
 
 @section('content')
-<div class="min-h-[calc(100vh-200px)] flex flex-col sm:justify-center items-center py-8 bg-slate-50">
-    <div class="w-full sm:max-w-md px-6 py-8 bg-white shadow-lg rounded-2xl border border-slate-100">
+<div class="min-h-[calc(100vh-200px)] flex flex-col sm:justify-center items-center py-6 sm:py-8 bg-slate-50">
+    <div class="w-full sm:max-w-md px-6 py-6 sm:px-8 sm:py-7 bg-white shadow-lg rounded-2xl border border-slate-100">
         
-        <div class="mb-5 text-center">
+        <div class="mb-4 text-center">
             <h2 class="text-2xl font-bold text-slate-900">Welcome Back</h2>
             <p class="text-sm text-slate-500 mt-1">Please sign in to your account</p>
         </div>
@@ -25,7 +25,7 @@
             </div>
 
             <!-- Password -->
-            <div class="mt-4">
+            <div class="mt-3">
                 <label for="password" class="block text-sm font-medium text-slate-700 mb-1">Password</label>
                 <div class="relative" x-data="{ show: false }">
                     <input id="password" class="block w-full rounded-lg border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 shadow-sm pr-10 text-sm"
@@ -41,8 +41,8 @@
             </div>
 
             <!-- Remember Me & Forgot Password -->
-            <div class="flex items-center justify-between pt-1 mt-4">
-                <label for="remember_me" class="inline-flex items-center">
+            <div class="flex items-center justify-between mt-3">
+                <label for="remember_me" class="inline-flex items-center cursor-pointer">
                     <input id="remember_me" type="checkbox" class="rounded border-slate-300 text-indigo-600 shadow-sm focus:ring-indigo-500" name="remember">
                     <span class="ms-2 text-sm text-slate-600">Remember me</span>
                 </label>
@@ -54,13 +54,13 @@
                 @endif
             </div>
 
-            <div class="pt-2 mt-4">
+            <div class="mt-4">
                 <button type="submit" class="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
                     Sign In
                 </button>
             </div>
             
-            <div class="pt-2 text-center">
+            <div class="mt-3 text-center">
                 <p class="text-sm text-slate-600">
                     Don't have an account? 
                     <a href="{{ route('register') }}" class="font-medium text-indigo-600 hover:text-indigo-500 transition-colors">Sign up</a>

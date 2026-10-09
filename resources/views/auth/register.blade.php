@@ -3,10 +3,10 @@
 @section('title', 'Register - ShopEase')
 
 @section('content')
-<div class="min-h-[calc(100vh-200px)] flex flex-col sm:justify-center items-center py-8 bg-slate-50">
-    <div class="w-full sm:max-w-md px-6 py-8 bg-white shadow-lg rounded-2xl border border-slate-100">
+<div class="min-h-[calc(100vh-200px)] flex flex-col sm:justify-center items-center py-6 sm:py-8 bg-slate-50">
+    <div class="w-full sm:max-w-md px-6 py-6 sm:px-8 sm:py-7 bg-white shadow-lg rounded-2xl border border-slate-100">
         
-        <div class="mb-5 text-center">
+        <div class="mb-4 text-center">
             <h2 class="text-2xl font-bold text-slate-900">Create an Account</h2>
             <p class="text-sm text-slate-500 mt-1">Join ShopEase today</p>
         </div>
@@ -22,14 +22,14 @@
             </div>
 
             <!-- Email Address -->
-            <div class="mt-4">
+            <div class="mt-3">
                 <label for="email" class="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
                 <input id="email" class="block w-full rounded-lg border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 shadow-sm text-sm" type="email" name="email" value="{{ old('email') }}" required autocomplete="username" />
                 <x-input-error :messages="$errors->get('email')" class="mt-1 text-red-500 text-xs" />
             </div>
 
             <!-- Password -->
-            <div class="mt-4">
+            <div class="mt-3">
                 <label for="password" class="block text-sm font-medium text-slate-700 mb-1">Password</label>
                 <div class="relative" x-data="{ show: false }">
                     <input id="password" class="block w-full rounded-lg border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 shadow-sm pr-10 text-sm"
@@ -45,7 +45,7 @@
             </div>
 
             <!-- Confirm Password -->
-            <div class="mt-4">
+            <div class="mt-3">
                 <label for="password_confirmation" class="block text-sm font-medium text-slate-700 mb-1">Confirm Password</label>
                 <div class="relative" x-data="{ show: false }">
                     <input id="password_confirmation" class="block w-full rounded-lg border-slate-300 focus:border-indigo-500 focus:ring-indigo-500 shadow-sm pr-10 text-sm"
@@ -60,13 +60,13 @@
                 <x-input-error :messages="$errors->get('password_confirmation')" class="mt-1 text-red-500 text-xs" />
             </div>
 
-            <div class="pt-2">
+            <div class="mt-4">
                 <button type="submit" class="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
                     Sign Up
                 </button>
             </div>
             
-            <div class="pt-2 text-center">
+            <div class="mt-3 text-center">
                 <p class="text-sm text-slate-600">
                     Already registered?
                     <a href="{{ route('login') }}" class="font-medium text-indigo-600 hover:text-indigo-500 transition-colors">Sign in here</a>
