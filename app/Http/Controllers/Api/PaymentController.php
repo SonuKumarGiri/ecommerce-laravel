@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use App\Http\Requests\ProcessPaymentRequest;
 use App\Http\Resources\OrderResource;
+use App\Services\OrderService;
 
 class PaymentController extends Controller
 {
@@ -32,7 +33,7 @@ class PaymentController extends Controller
                 ], 400);
             }
 
-            if ((float) $order->total_amount !== (float) $request->amount) {
+            if (round((float) $order->total_amount, 2) !== round((float) $request->amount, 2)) {
                 return response()->json([
                     'status' => false,
                     'message' => 'Payment amount does not match order total.'
@@ -69,23 +70,8 @@ class PaymentController extends Controller
                 ], 200);
 
             } else {
-                // Payment Failed Simulation
-                $order->update([
-                    'status' => 'CANCELLED',
-                    'payment_status' => 'failed'
-                ]);
-                
-                // Update payment record if exists
-                if ($order->payment) {
-                    $order->payment->update(['status' => 'FAILED']);
-                }
-
-                // Restore stock
-                foreach ($order->items as $item) {
-                    $item->product->increment('stock', $item->quantity);
-                }
-
-                DB::commit();
+                // Payment Failed Simulation - safely cancel order and restore stock via OrderService
+                $order = OrderService::cancelOrder($order, $request->user(), 'FAILED');
 
                 Log::warning('Payment failed via API', ['order_id' => $order->id, 'amount' => $request->amount]);
 

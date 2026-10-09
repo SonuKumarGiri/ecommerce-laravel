@@ -7,6 +7,7 @@ use App\Models\Order;
 use Illuminate\Http\Request;
 use App\Http\Requests\UpdateOrderStatusRequest;
 use App\Notifications\OrderStatusChangedNotification;
+use App\Services\OrderService;
 
 class OrderController extends Controller
 {
@@ -66,11 +67,21 @@ class OrderController extends Controller
         try {
             $order = Order::findOrFail($id);
 
-            $oldStatus = $order->status;
-            $order->update($request->validated());
+            $oldStatus = strtoupper($order->status ?? '');
+            $newStatus = strtoupper($request->status ?? '');
 
-            if ($oldStatus !== $order->status && $order->user) {
-                $order->user->notify(new OrderStatusChangedNotification($order));
+            if ($oldStatus !== 'CANCELLED' && $newStatus === 'CANCELLED') {
+                $order = OrderService::cancelOrder($order, auth()->user());
+
+                if ($request->filled('payment_status')) {
+                    $order->update(['payment_status' => $request->payment_status]);
+                }
+            } else {
+                $order->update($request->validated());
+
+                if ($oldStatus !== strtoupper($order->status ?? '') && $order->user) {
+                    $order->user->notify(new OrderStatusChangedNotification($order));
+                }
             }
 
             return redirect()->route('admin.orders.show', $order->id)->with('success', 'Order updated successfully');

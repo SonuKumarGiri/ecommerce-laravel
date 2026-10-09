@@ -65,22 +65,29 @@ class CheckoutController extends Controller
 
             $totalAmount = 0;
 
-            // Pre-check stock and calculate total
+            // Pre-check stock and calculate total strictly on the server
             foreach ($cart->items as $item) {
                 // Explicitly lock the product row to prevent race conditions
                 $product = Product::lockForUpdate()->find($item->product_id);
                 if (!$product || $product->stock < $item->quantity) {
                     throw new Exception("Product '" . ($product ? $product->name : 'Unknown') . "' does not have enough stock.");
                 }
-                $totalAmount += $product->price * $item->quantity;
+
+                $itemTotal = round($product->price * $item->quantity, 2);
+                $totalAmount += $itemTotal;
+
                 $item->locked_product = $product;
+                $item->unit_price = $product->price;
+                $item->item_total = $itemTotal;
             }
+
+            $roundedTotal = round($totalAmount, 2);
 
             // Create Order
             $order = Order::create([
                 'order_number' => 'ORD-' . strtoupper(Str::random(10)),
                 'user_id' => auth()->id(),
-                'total_amount' => $totalAmount,
+                'total_amount' => $roundedTotal,
                 'status' => 'PLACED',
                 'payment_status' => 'PENDING',
                 'shipping_name' => $request->name,
@@ -96,8 +103,8 @@ class CheckoutController extends Controller
                     'order_id' => $order->id,
                     'product_id' => $item->product_id,
                     'quantity' => $item->quantity,
-                    'price' => $item->product->price,
-                    'total' => $item->product->price * $item->quantity,
+                    'price' => $item->unit_price,
+                    'total' => $item->item_total,
                 ]);
 
                 // Reduce stock safely on locked record
@@ -107,7 +114,7 @@ class CheckoutController extends Controller
             // Create Payment Record (Simulated)
             Payment::create([
                 'order_id' => $order->id,
-                'amount' => $totalAmount,
+                'amount' => $roundedTotal,
                 'payment_method' => $request->payment_method,
                 'status' => $request->payment_method === 'COD' ? 'PENDING' : 'SUCCESS', // Simulating successful online payment
                 'transaction_id' => $request->payment_method === 'ONLINE' ? 'TXN' . strtoupper(Str::random(12)) : null,

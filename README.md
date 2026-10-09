@@ -25,10 +25,10 @@ A complete full-stack web application built with Laravel 12. It features a compl
 - **Authentication:** Secure Registration, Login, and Logout functionality.
 - **Product Catalog:** Browse products, search by name, filter by category/price, and sort (price/newest) dynamically without page reloads (AJAX/Fetch).
 - **Product Details:** View detailed information, stock status, and add items to the cart.
-- **Shopping Cart:** Add/remove items, adjust quantities, and dynamically view subtotal/total calculation without exceeding available stock limits.
-- **Checkout:** Validate shipping details, choose payment method (COD or Online). Order creation handles stock reduction and transactions safely.
+- **Shopping Cart:** Add/remove items, adjust quantities, guest-to-user cart migration upon login, and dynamically view subtotal/total calculation without exceeding available stock limits.
+- **Checkout:** Validate shipping details, choose payment method (COD or Online). Order creation handles stock reduction and transactions safely with strictly server-side authoritative price calculation (immune to client-side price tampering).
 - **Order History:** View past orders, check order status, and view detailed invoices.
-- **Order Cancellation:** Customers can cancel orders that haven't been shipped yet, automatically restoring stock and simulating payment refunds.
+- **Order Cancellation & Stock Restoration:** Customers and Admins can safely cancel orders (prior to shipment). Powered by a centralized `OrderService` with database transactions and pessimistic row-locking (`lockForUpdate`), preventing race conditions, blocking double-cancellations, automatically restoring inventory, and triggering payment refunds.
 - **Profile Management:** Update personal information.
 
 ## Installation Steps
@@ -111,22 +111,22 @@ The application provides RESTful APIs utilizing Laravel Sanctum for authenticati
 **Public APIs:**
 - `POST /api/login` - Authenticate a user
 - `POST /api/register` - Register a new user
-- `GET /api/get-categories` - List all categories
-- `GET /api/get-category-details/{category}` - Get category details
-- `GET /api/get-products` - List all products
-- `GET /api/get-product-details/{product}` - Get product details
+- `GET /api/categories` (or `/api/get-categories`) - List all categories
+- `GET /api/categories/{category}` (or `/api/get-category-details/{category}`) - Get category details
+- `GET /api/products` (or `/api/get-products`) - List all products
+- `GET /api/products/{product}` (or `/api/get-product-details/{product}`) - Get product details
 
 **Protected APIs (Requires Bearer Token):**
 - `GET /api/user` - Get authenticated user
 - `POST /api/logout` - Logout user
-- `GET /api/get-cart` - View current user's cart
-- `POST /api/add-to-cart` - Add an item to cart
-- `PUT /api/update-cart-item/{id}` - Update cart item quantity
-- `DELETE /api/remove-cart-item/{id}` - Remove item from cart
-- `GET /api/my-orders` - View user's order history
-- `GET /api/my-orders/{order}` - View specific order
-- `POST /api/place-order` - Place an order from current cart
-- `POST /api/cancel-order/{order}` - Cancel an order
+- `GET /api/cart` (or `/api/get-cart`) - View current user's cart
+- `POST /api/cart` (or `/api/add-to-cart`) - Add an item to cart
+- `PUT /api/cart/{id}` (or `/api/update-cart-item/{id}`) - Update cart item quantity
+- `DELETE /api/cart/{id}` (or `/api/remove-cart-item/{id}`) - Remove item from cart
+- `GET /api/orders` (or `/api/my-orders`) - View user's order history
+- `GET /api/orders/{order}` (or `/api/my-orders/{order}`) - View specific order
+- `POST /api/orders` (or `/api/place-order`) - Place an order from current cart
+- `POST /api/orders/{order}/cancel` (or `/api/cancel-order/{order}`) - Cancel an order
 - `POST /api/payment/process` - Process simulated payment for an order
 
 Note: Pass the authentication token in the request headers:

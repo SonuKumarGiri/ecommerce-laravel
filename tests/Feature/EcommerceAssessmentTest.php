@@ -220,4 +220,79 @@ class EcommerceAssessmentTest extends TestCase
         // Guest cart should be cleaned up
         $this->assertDatabaseMissing('carts', ['id' => $guestCart->id]);
     }
+
+    public function test_api_order_cancellation_restores_stock_and_refunds()
+    {
+        $token = $this->customer->createToken('test')->plainTextToken;
+        $order = Order::factory()->create([
+            'user_id' => $this->customer->id,
+            'status' => 'PENDING',
+            'payment_status' => 'SUCCESS',
+            'total_amount' => 300,
+        ]);
+        $product = Product::factory()->create(['stock' => 5]);
+        $order->items()->create(['product_id' => $product->id, 'quantity' => 3, 'price' => 100, 'total' => 300]);
+        $order->payment()->create([
+            'amount' => 300,
+            'payment_method' => 'ONLINE',
+            'status' => 'SUCCESS',
+        ]);
+
+        $response = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->postJson("/api/orders/{$order->id}/cancel");
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('status', true);
+
+        // Order and payment status updated
+        $freshOrder = $order->fresh();
+        $this->assertEquals('CANCELLED', $freshOrder->status);
+        $this->assertEquals('REFUNDED', $freshOrder->payment_status);
+        $this->assertEquals('REFUNDED', $freshOrder->payment->fresh()->status);
+
+        // Product stock restored
+        $this->assertEquals(8, $product->fresh()->stock);
+
+        // Attempting to cancel again should fail and NOT restore stock again
+        $secondResponse = $this->withHeaders(['Authorization' => 'Bearer ' . $token])
+            ->postJson("/api/orders/{$order->id}/cancel");
+        $secondResponse->assertStatus(400);
+        $this->assertEquals(8, $product->fresh()->stock);
+    }
+
+    public function test_cannot_cancel_shipped_or_delivered_order()
+    {
+        $order = Order::factory()->create([
+            'user_id' => $this->customer->id,
+            'status' => 'SHIPPED',
+        ]);
+        $product = Product::factory()->create(['stock' => 10]);
+        $order->items()->create(['product_id' => $product->id, 'quantity' => 2, 'price' => 50, 'total' => 100]);
+
+        $response = $this->actingAs($this->customer)->post(route('orders.cancel', $order->id));
+
+        $response->assertSessionHas('error');
+        $this->assertEquals('SHIPPED', $order->fresh()->status);
+        // Stock should remain unchanged
+        $this->assertEquals(10, $product->fresh()->stock);
+    }
+
+    public function test_admin_cancellation_restores_stock()
+    {
+        $order = Order::factory()->create([
+            'user_id' => $this->customer->id,
+            'status' => 'CONFIRMED',
+            'payment_status' => 'SUCCESS',
+        ]);
+        $product = Product::factory()->create(['stock' => 4]);
+        $order->items()->create(['product_id' => $product->id, 'quantity' => 4, 'price' => 100, 'total' => 400]);
+
+        $response = $this->actingAs($this->admin)->put(route('admin.orders.update', $order->id), [
+            'status' => 'CANCELLED',
+        ]);
+
+        $response->assertRedirect();
+        $this->assertEquals('CANCELLED', $order->fresh()->status);
+        $this->assertEquals(8, $product->fresh()->stock);
+    }
 }

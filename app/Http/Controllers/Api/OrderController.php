@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Validator;
 use App\Jobs\SendOrderConfirmationJob;
 use App\Notifications\NewOrderNotification;
 use App\Models\User;
+use App\Services\OrderService;
 
 class OrderController extends Controller
 {
@@ -133,17 +134,22 @@ class OrderController extends Controller
                     ], 400);
                 }
                 
-                $totalAmount += $product->price * $item->quantity;
+                $itemTotal = round((float) $product->price * $item->quantity, 2);
+                $totalAmount += $itemTotal;
                 
                 // We map the fresh locked product object to avoid querying it again
                 $item->locked_product = $product;
+                $item->unit_price = (float) $product->price;
+                $item->item_total = $itemTotal;
             }
+
+            $roundedTotal = round($totalAmount, 2);
 
             $order = Order::create([
                 'user_id' => $user->id,
                 'order_number' => 'ORD-' . strtoupper(uniqid()),
                 'status' => 'PENDING',
-                'total_amount' => $totalAmount,
+                'total_amount' => $roundedTotal,
                 'shipping_name' => $request->shipping_name,
                 'shipping_mobile' => $request->shipping_phone,
                 'shipping_address' => $request->shipping_address,
@@ -152,19 +158,25 @@ class OrderController extends Controller
             ]);
 
             foreach ($cart->items as $item) {
-                $product = $item->locked_product;
-                
                 OrderItem::create([
                     'order_id' => $order->id,
-                    'product_id' => $product->id,
-                    'price' => $product->price,
+                    'product_id' => $item->product_id,
+                    'price' => $item->unit_price,
                     'quantity' => $item->quantity,
-                    'total' => $product->price * $item->quantity,
+                    'total' => $item->item_total,
                 ]);
 
                 // Decrement safely on the locked record
-                $product->decrement('stock', $item->quantity);
+                $item->locked_product->decrement('stock', $item->quantity);
             }
+
+            // Create initial payment record
+            Payment::create([
+                'order_id' => $order->id,
+                'amount' => $roundedTotal,
+                'payment_method' => $request->payment_method ?? 'ONLINE',
+                'status' => 'PENDING',
+            ]);
 
             $cart->items()->delete();
 
@@ -207,7 +219,7 @@ class OrderController extends Controller
     public function cancelOrder(Request $request, string $id)
     {
         try {
-            $order = Order::with('items.product')->where('user_id', $request->user()->id)->find($id);
+            $order = Order::where('user_id', $request->user()->id)->find($id);
             
             if (!$order) {
                 return response()->json([
@@ -216,50 +228,29 @@ class OrderController extends Controller
                 ], 404);
             }
 
-            if (!in_array(strtoupper($order->status), ['PLACED', 'CONFIRMED', 'PROCESSING', 'PENDING'])) {
+            if (!OrderService::canCancel($order)) {
                 return response()->json([
                     'status' => false,
                     'message' => 'This order cannot be cancelled at this stage.'
                 ], 400);
             }
 
-            DB::beginTransaction();
-
-            $order->update(['status' => 'cancelled']);
-
-            foreach ($order->items as $item) {
-                if ($item->product_id) {
-                    Product::where('id', $item->product_id)->increment('stock', $item->quantity);
-                }
-            }
-
-            $payment = Payment::where('order_id', $order->id)->first();
-            if ($payment && strtoupper($payment->status) === 'SUCCESS') {
-                $payment->update(['status' => 'REFUNDED']);
-                $order->update(['payment_status' => 'refunded']);
-            } else if (strtoupper($order->payment_status) === 'SUCCESS' || $order->payment_status === 'paid') {
-                $order->update(['payment_status' => 'refunded']);
-            } else {
-                $order->update(['payment_status' => 'cancelled']);
-            }
-
-            DB::commit();
+            $order = OrderService::cancelOrder($order, $request->user());
 
             Log::info('Order cancelled via API', ['order_id' => $order->id, 'user_id' => $request->user()->id]);
 
             return response()->json([
                 'status' => true,
-                'message' => 'Order cancelled successfully.'
+                'message' => 'Order cancelled successfully.',
+                'data' => new OrderResource($order->fresh(['items.product', 'user']))
             ], 200);
             
         } catch (\Throwable $e) {
-            DB::rollBack();
             Log::error('API Error in OrderController@cancelOrder: ' . $e->getMessage());
             
             return response()->json([
                 'status' => false,
-                'message' => 'Failed to cancel the order.',
-                'error' => $e->getMessage()
+                'message' => $e->getMessage() ?: 'Failed to cancel the order.',
             ], 500);
         }
     }

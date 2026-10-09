@@ -29,18 +29,20 @@ class CartController extends Controller
             $items = $cart->items()->with('product')->get();
 
             $formattedItems = $items->map(function ($item) {
+                $itemSubtotal = $item->quantity * ($item->product ? (float) $item->product->price : 0);
                 return [
                     'id' => $item->id,
                     'cart_id' => $item->cart_id,
                     'quantity' => $item->quantity,
-                    'subtotal' => $item->quantity * ($item->product ? $item->product->price : 0),
+                    'subtotal' => round($itemSubtotal, 2),
                     'product' => new ProductResource($item->product)
                 ];
             });
 
             $subtotal = $items->sum(function ($item) {
-                return $item->quantity * ($item->product ? $item->product->price : 0);
+                return $item->quantity * ($item->product ? (float) $item->product->price : 0);
             });
+            $roundedSubtotal = round($subtotal, 2);
 
             Log::info('Cart retrieved successfully via API', ['user_id' => $request->user()->id]);
 
@@ -49,8 +51,8 @@ class CartController extends Controller
                 'message' => 'Cart retrieved successfully',
                 'data' => [
                     'items' => $formattedItems,
-                    'subtotal' => $subtotal,
-                    'total' => $subtotal
+                    'subtotal' => $roundedSubtotal,
+                    'total' => $roundedSubtotal
                 ]
             ], 200);
         } catch (\Throwable $e) {

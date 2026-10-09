@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Customer;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Services\OrderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -29,41 +30,19 @@ class OrderController extends Controller
 
     public function cancel($id)
     {
-        $order = Order::with('items.product')->where('user_id', auth()->id())->findOrFail($id);
+        $order = Order::where('user_id', auth()->id())->findOrFail($id);
         
-        if (!in_array(strtolower($order->status), ['placed', 'confirmed', 'processing', 'pending'])) {
+        if (!OrderService::canCancel($order)) {
             return back()->with('error', 'This order cannot be cancelled at this stage.');
         }
 
         try {
-            DB::beginTransaction();
-
-            // Update order status
-            $order->update(['status' => 'CANCELLED']);
-
-            // Restore stock
-            foreach ($order->items as $item) {
-                if ($item->product) {
-                    $item->product->increment('stock', $item->quantity);
-                }
-            }
-
-            // Update payment status if online
-            $payment = Payment::where('order_id', $order->id)->first();
-            if ($payment && $payment->status === 'SUCCESS') {
-                $payment->update(['status' => 'REFUNDED']);
-                $order->update(['payment_status' => 'REFUNDED']);
-            } else if ($order->payment_status === 'SUCCESS') {
-                $order->update(['payment_status' => 'REFUNDED']);
-            }
-
-            DB::commit();
+            OrderService::cancelOrder($order, auth()->user());
             return back()->with('success', 'Order has been cancelled successfully.');
             
         } catch (Throwable $th) {
-            DB::rollBack();
             Log::error('Order Cancel Error: ' . $th->getMessage());
-            return back()->with('error', 'Failed to cancel order.');
+            return back()->with('error', $th->getMessage() ?: 'Failed to cancel order.');
         }
     }
 }

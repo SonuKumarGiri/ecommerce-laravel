@@ -15,7 +15,7 @@ class UpdateOrderStatusRequest extends FormRequest
     {
         return [
             'status' => 'required|string|in:PLACED,CONFIRMED,PROCESSING,SHIPPED,DELIVERED,CANCELLED',
-            'payment_status' => 'required|string|in:PENDING,SUCCESS,FAILED,REFUNDED',
+            'payment_status' => 'nullable|string|in:PENDING,SUCCESS,FAILED,REFUNDED',
         ];
     }
 }
